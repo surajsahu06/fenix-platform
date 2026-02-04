@@ -49,6 +49,7 @@ class FulfillmentServiceTest {
     private OutboxEventService outboxEventService;
 
     private FulfillmentService service;
+
     private PageableFactory pageableFactory;
 
     @BeforeEach

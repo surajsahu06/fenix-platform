@@ -50,6 +50,7 @@ class TrackingServiceTest {
     private OutboxEventService outboxEventService;
 
     private TrackingService service;
+
     private PageableFactory pageableFactory;
 
     @BeforeEach

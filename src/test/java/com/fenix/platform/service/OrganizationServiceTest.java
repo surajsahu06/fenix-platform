@@ -44,6 +44,7 @@ class OrganizationServiceTest {
     private OutboxEventService outboxEventService;
 
     private OrganizationService service;
+
     private PageableFactory pageableFactory;
 
     @BeforeEach

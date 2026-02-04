@@ -56,6 +56,7 @@ class OrderServiceTest {
     private TenantAccessGuard tenantAccessGuard;
 
     private OrderService service;
+
     private PageableFactory pageableFactory;
 
     @BeforeEach
