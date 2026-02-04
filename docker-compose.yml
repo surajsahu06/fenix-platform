@@ -31,6 +31,7 @@ services:
     restart: unless-stopped
   tests:
     image: maven:3.9.6-eclipse-temurin-21
+    container_name: fenix-platform-test
     working_dir: /workspace
     volumes:
       - .:/workspace
