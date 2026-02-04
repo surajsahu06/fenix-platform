@@ -131,6 +131,10 @@ Requests that reference another organization’s resources return **404** to avo
 Flyway runs automatically on startup.
 Migrations live in `src/main/resources/db/migration`.
 
+## OpenAPI Spec Notes
+The OpenAPI spec includes `Organization.externalId` and `Website.domain`, but the current database migrations do not define these columns.
+If you need spec parity, add migrations and map the fields in the entity/DTOs.
+
 ## Request Examples
 Create organization:
 ```bash
