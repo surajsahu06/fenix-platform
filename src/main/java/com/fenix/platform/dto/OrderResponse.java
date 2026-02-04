@@ -1,0 +1,37 @@
+package com.fenix.platform.dto;
+
+import com.fenix.platform.model.FinancialStatus;
+import com.fenix.platform.model.FulfillmentOverallStatus;
+import com.fenix.platform.model.OrderStatus;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class OrderResponse {
+    private UUID id;
+    private UUID orgId;
+    private UUID websiteId;
+    private String externalOrderId;
+    private String externalOrderNumber;
+    private OrderStatus status;
+    private FinancialStatus financialStatus;
+    private FulfillmentOverallStatus fulfillmentStatus;
+    private String customerEmail;
+    private BigDecimal orderTotal;
+    private String currency;
+    private OffsetDateTime orderCreatedAt;
+    private OffsetDateTime orderUpdatedAt;
+    private OffsetDateTime ingestedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+}
