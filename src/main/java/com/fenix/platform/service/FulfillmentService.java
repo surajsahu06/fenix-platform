@@ -13,7 +13,7 @@ import com.fenix.platform.model.FulfillmentStatus;
 import com.fenix.platform.outbox.OutboxEventType;
 import com.fenix.platform.repository.FulfillmentRepository;
 import com.fenix.platform.util.PageableFactory;
-import com.fenix.platform.util.SpecificationUtils;
+import com.fenix.platform.util.SpecificationBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -51,11 +51,12 @@ public class FulfillmentService {
                                                    FulfillmentStatus status, String carrier, Integer page, Integer size, String sort) {
         log.debug("Listing fulfillments orderId={} from={} to={} status={} carrier={} page={} size={} sort={}",
                 orderId, from, to, status, carrier, page, size, sort);
-        Specification<Fulfillment> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("order.id", orderId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.between("updatedAt", from, to));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("status", status));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("carrier", carrier));
+        Specification<Fulfillment> spec = SpecificationBuilder.<Fulfillment>builder()
+                .equal("order.id", orderId)
+                .between("updatedAt", from, to)
+                .equal("status", status)
+                .likeIgnoreCase("carrier", carrier)
+                .build();
         Pageable pageable = pageableFactory.from(page, size, sort);
         Page<FulfillmentResponse> result = repository.findAll(spec, pageable).map(FulfillmentMapper::toResponse);
         return PagedResponse.from(result);
@@ -65,9 +66,10 @@ public class FulfillmentService {
     public PagedResponse<FulfillmentResponse> search(UUID orderId, String externalFulfillmentId, Integer page, Integer size) {
         log.debug("Searching fulfillment's orderId={} externalFulfillmentId={} page={} size={}",
                 orderId, externalFulfillmentId, page, size);
-        Specification<Fulfillment> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("order.id", orderId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("externalFulfillmentId", externalFulfillmentId));
+        Specification<Fulfillment> spec = SpecificationBuilder.<Fulfillment>builder()
+                .equal("order.id", orderId)
+                .equal("externalFulfillmentId", externalFulfillmentId)
+                .build();
         Pageable pageable = pageableFactory.from(page, size, null);
         Page<FulfillmentResponse> result = repository.findAll(spec, pageable).map(FulfillmentMapper::toResponse);
         return PagedResponse.from(result);
@@ -109,9 +111,10 @@ public class FulfillmentService {
     }
 
     public Fulfillment getEntity(UUID orderId, UUID fulfillmentId) {
-        Specification<Fulfillment> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("order.id", orderId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("id", fulfillmentId));
+        Specification<Fulfillment> spec = SpecificationBuilder.<Fulfillment>builder()
+                .equal("order.id", orderId)
+                .equal("id", fulfillmentId)
+                .build();
         return repository.findOne(spec)
                 .orElseThrow(() -> new NotFoundException("Fulfillment not found"));
     }

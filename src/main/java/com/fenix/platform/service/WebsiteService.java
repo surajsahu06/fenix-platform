@@ -14,7 +14,7 @@ import com.fenix.platform.outbox.OutboxEventType;
 import com.fenix.platform.repository.WebsiteRepository;
 import com.fenix.platform.tenant.TenantAccessGuard;
 import com.fenix.platform.util.PageableFactory;
-import com.fenix.platform.util.SpecificationUtils;
+import com.fenix.platform.util.SpecificationBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -52,12 +52,13 @@ public class WebsiteService {
                                                Platform platform, String code, Integer page, Integer size, String sort) {
         log.debug("Listing websites orgId={} from={} to={} status={} platform={} code={} page={} size={} sort={}",
                 orgId, from, to, status, platform, code, page, size, sort);
-        Specification<Website> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("organization.id", orgId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.between("updatedAt", from, to));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("status", status));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("platform", platform));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("code", code));
+        Specification<Website> spec = SpecificationBuilder.<Website>builder()
+                .equal("organization.id", orgId)
+                .between("updatedAt", from, to)
+                .equal("status", status)
+                .equal("platform", platform)
+                .likeIgnoreCase("code", code)
+                .build();
         Pageable pageable = pageableFactory.from(page, size, sort);
         Page<WebsiteResponse> result = repository.findAll(spec, pageable).map(WebsiteMapper::toResponse);
         return PagedResponse.from(result);
@@ -70,10 +71,11 @@ public class WebsiteService {
         if (websiteId != null) {
             tenantAccessGuard.ensureWebsiteInOrganization(orgId, websiteId);
         }
-        Specification<Website> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("organization.id", orgId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("id", websiteId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("code", code));
+        Specification<Website> spec = SpecificationBuilder.<Website>builder()
+                .equal("organization.id", orgId)
+                .equal("id", websiteId)
+                .likeIgnoreCase("code", code)
+                .build();
         Pageable pageable = pageableFactory.from(page, size, null);
         Page<WebsiteResponse> result = repository.findAll(spec, pageable).map(WebsiteMapper::toResponse);
         return PagedResponse.from(result);

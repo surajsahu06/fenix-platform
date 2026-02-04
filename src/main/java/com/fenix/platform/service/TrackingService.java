@@ -13,7 +13,7 @@ import com.fenix.platform.model.TrackingStatus;
 import com.fenix.platform.outbox.OutboxEventType;
 import com.fenix.platform.repository.TrackingRepository;
 import com.fenix.platform.util.PageableFactory;
-import com.fenix.platform.util.SpecificationUtils;
+import com.fenix.platform.util.SpecificationBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -51,12 +51,13 @@ public class TrackingService {
                                                 TrackingStatus status, String carrier, String trackingNumber, Integer page, Integer size, String sort) {
         log.debug("Listing tracking fulfillmentId={} from={} to={} status={} carrier={} trackingNumber={} page={} size={} sort={}",
                 fulfillmentId, from, to, status, carrier, trackingNumber, page, size, sort);
-        Specification<Tracking> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("fulfillment.id", fulfillmentId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.between("updatedAt", from, to));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("status", status));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("carrier", carrier));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("trackingNumber", trackingNumber));
+        Specification<Tracking> spec = SpecificationBuilder.<Tracking>builder()
+                .equal("fulfillment.id", fulfillmentId)
+                .between("updatedAt", from, to)
+                .equal("status", status)
+                .likeIgnoreCase("carrier", carrier)
+                .likeIgnoreCase("trackingNumber", trackingNumber)
+                .build();
         Pageable pageable = pageableFactory.from(page, size, sort);
         Page<TrackingResponse> result = repository.findAll(spec, pageable).map(TrackingMapper::toResponse);
         return PagedResponse.from(result);
@@ -67,10 +68,11 @@ public class TrackingService {
                                                   Integer page, Integer size) {
         log.debug("Searching tracking fulfillmentId={} trackingNumber={} carrier={} page={} size={}",
                 fulfillmentId, trackingNumber, carrier, page, size);
-        Specification<Tracking> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("fulfillment.id", fulfillmentId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("trackingNumber", trackingNumber));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("carrier", carrier));
+        Specification<Tracking> spec = SpecificationBuilder.<Tracking>builder()
+                .equal("fulfillment.id", fulfillmentId)
+                .equal("trackingNumber", trackingNumber)
+                .likeIgnoreCase("carrier", carrier)
+                .build();
         Pageable pageable = pageableFactory.from(page, size, null);
         Page<TrackingResponse> result = repository.findAll(spec, pageable).map(TrackingMapper::toResponse);
         return PagedResponse.from(result);
@@ -112,9 +114,10 @@ public class TrackingService {
     }
 
     private Tracking getEntity(UUID fulfillmentId, UUID trackingId) {
-        Specification<Tracking> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("fulfillment.id", fulfillmentId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("id", trackingId));
+        Specification<Tracking> spec = SpecificationBuilder.<Tracking>builder()
+                .equal("fulfillment.id", fulfillmentId)
+                .equal("id", trackingId)
+                .build();
         return repository.findOne(spec)
                 .orElseThrow(() -> new NotFoundException("Tracking not found"));
     }

@@ -17,7 +17,7 @@ import com.fenix.platform.outbox.OutboxEventType;
 import com.fenix.platform.repository.OrderRepository;
 import com.fenix.platform.tenant.TenantAccessGuard;
 import com.fenix.platform.util.PageableFactory;
-import com.fenix.platform.util.SpecificationUtils;
+import com.fenix.platform.util.SpecificationBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -65,13 +65,14 @@ public class OrderService {
             tenantAccessGuard.ensureWebsiteInOrganization(orgId, websiteId);
         }
         String resolvedSort = sort != null ? sort : "orderUpdatedAt,desc";
-        Specification<Order> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("organization.id", orgId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("website.id", websiteId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.between("orderUpdatedAt", from, to));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("status", status));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("financialStatus", financialStatus));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("fulfillmentStatus", fulfillmentStatus));
+        Specification<Order> spec = SpecificationBuilder.<Order>builder()
+                .equal("organization.id", orgId)
+                .equal("website.id", websiteId)
+                .between("orderUpdatedAt", from, to)
+                .equal("status", status)
+                .equal("financialStatus", financialStatus)
+                .equal("fulfillmentStatus", fulfillmentStatus)
+                .build();
         Pageable pageable = pageableFactory.from(page, size, resolvedSort);
         Page<OrderResponse> result = repository.findAll(spec, pageable).map(OrderMapper::toResponse);
         return PagedResponse.from(result);
@@ -85,11 +86,12 @@ public class OrderService {
         if (websiteId != null) {
             tenantAccessGuard.ensureWebsiteInOrganization(orgId, websiteId);
         }
-        Specification<Order> spec = null;
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("organization.id", orgId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("website.id", websiteId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("externalOrderId", externalOrderId));
-        spec = SpecificationUtils.and(spec, SpecificationUtils.equal("externalOrderNumber", externalOrderNumber));
+        Specification<Order> spec = SpecificationBuilder.<Order>builder()
+                .equal("organization.id", orgId)
+                .equal("website.id", websiteId)
+                .equal("externalOrderId", externalOrderId)
+                .equal("externalOrderNumber", externalOrderNumber)
+                .build();
         Pageable pageable = pageableFactory.from(page, size, "orderUpdatedAt,desc");
         Page<OrderResponse> result = repository.findAll(spec, pageable).map(OrderMapper::toResponse);
         return PagedResponse.from(result);
