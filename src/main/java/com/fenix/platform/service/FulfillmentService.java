@@ -12,7 +12,7 @@ import com.fenix.platform.mapper.FulfillmentMapper;
 import com.fenix.platform.model.FulfillmentStatus;
 import com.fenix.platform.outbox.OutboxEventType;
 import com.fenix.platform.repository.FulfillmentRepository;
-import com.fenix.platform.util.PageableUtils;
+import com.fenix.platform.util.PageableFactory;
 import com.fenix.platform.util.SpecificationUtils;
 
 import java.time.OffsetDateTime;
@@ -33,6 +33,7 @@ public class FulfillmentService {
     private final FulfillmentRepository repository;
     private final OrderService orderService;
     private final OutboxEventService outboxEventService;
+    private final PageableFactory pageableFactory;
 
     @Transactional
     public FulfillmentResponse create(UUID orderId, FulfillmentCreateRequest request) {
@@ -45,6 +46,7 @@ public class FulfillmentService {
         return FulfillmentMapper.toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<FulfillmentResponse> list(UUID orderId, OffsetDateTime from, OffsetDateTime to,
                                                    FulfillmentStatus status, String carrier, Integer page, Integer size, String sort) {
         log.debug("Listing fulfillments orderId={} from={} to={} status={} carrier={} page={} size={} sort={}",
@@ -54,22 +56,24 @@ public class FulfillmentService {
         spec = SpecificationUtils.and(spec, SpecificationUtils.between("updatedAt", from, to));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("status", status));
         spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("carrier", carrier));
-        Pageable pageable = PageableUtils.from(page, size, sort);
+        Pageable pageable = pageableFactory.from(page, size, sort);
         Page<FulfillmentResponse> result = repository.findAll(spec, pageable).map(FulfillmentMapper::toResponse);
         return PagedResponse.from(result);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<FulfillmentResponse> search(UUID orderId, String externalFulfillmentId, Integer page, Integer size) {
         log.debug("Searching fulfillment's orderId={} externalFulfillmentId={} page={} size={}",
                 orderId, externalFulfillmentId, page, size);
         Specification<Fulfillment> spec = null;
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("order.id", orderId));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("externalFulfillmentId", externalFulfillmentId));
-        Pageable pageable = PageableUtils.from(page, size, null);
+        Pageable pageable = pageableFactory.from(page, size, null);
         Page<FulfillmentResponse> result = repository.findAll(spec, pageable).map(FulfillmentMapper::toResponse);
         return PagedResponse.from(result);
     }
 
+    @Transactional(readOnly = true)
     public FulfillmentResponse get(UUID orderId, UUID fulfillmentId) {
         log.debug("Fetching fulfillment orderId={} fulfillmentId={}", orderId, fulfillmentId);
         return FulfillmentMapper.toResponse(getEntity(orderId, fulfillmentId));

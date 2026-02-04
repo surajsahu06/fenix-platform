@@ -142,9 +142,9 @@ class OrderFulfillmentTrackingFlowIntegrationTest {
         orderRequest.setExternalOrderId("CROSS-ORG-ORDER");
         orderRequest.setOrderTotal(new BigDecimal("10.00"));
         ResponseEntity<ErrorResponse> orderResponse = restTemplate.postForEntity("/orders", orderRequest, ErrorResponse.class);
-        assertThat(orderResponse.getStatusCode().value()).isEqualTo(400);
+        assertThat(orderResponse.getStatusCode().value()).isEqualTo(404);
         assertThat(orderResponse.getBody().getMessage())
-                .contains("Website does not belong to the specified organization");
+                .contains("Website not found");
     }
 
     @Test

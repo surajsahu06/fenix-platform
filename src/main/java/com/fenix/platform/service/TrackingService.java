@@ -12,7 +12,7 @@ import com.fenix.platform.mapper.TrackingMapper;
 import com.fenix.platform.model.TrackingStatus;
 import com.fenix.platform.outbox.OutboxEventType;
 import com.fenix.platform.repository.TrackingRepository;
-import com.fenix.platform.util.PageableUtils;
+import com.fenix.platform.util.PageableFactory;
 import com.fenix.platform.util.SpecificationUtils;
 
 import java.time.OffsetDateTime;
@@ -33,6 +33,7 @@ public class TrackingService {
     private final TrackingRepository repository;
     private final FulfillmentService fulfillmentService;
     private final OutboxEventService outboxEventService;
+    private final PageableFactory pageableFactory;
 
     @Transactional
     public TrackingResponse create(UUID fulfillmentId, TrackingCreateRequest request) {
@@ -45,6 +46,7 @@ public class TrackingService {
         return TrackingMapper.toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<TrackingResponse> list(UUID fulfillmentId, OffsetDateTime from, OffsetDateTime to,
                                                 TrackingStatus status, String carrier, String trackingNumber, Integer page, Integer size, String sort) {
         log.debug("Listing tracking fulfillmentId={} from={} to={} status={} carrier={} trackingNumber={} page={} size={} sort={}",
@@ -55,11 +57,12 @@ public class TrackingService {
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("status", status));
         spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("carrier", carrier));
         spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("trackingNumber", trackingNumber));
-        Pageable pageable = PageableUtils.from(page, size, sort);
+        Pageable pageable = pageableFactory.from(page, size, sort);
         Page<TrackingResponse> result = repository.findAll(spec, pageable).map(TrackingMapper::toResponse);
         return PagedResponse.from(result);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<TrackingResponse> search(UUID fulfillmentId, String trackingNumber, String carrier,
                                                   Integer page, Integer size) {
         log.debug("Searching tracking fulfillmentId={} trackingNumber={} carrier={} page={} size={}",
@@ -68,11 +71,12 @@ public class TrackingService {
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("fulfillment.id", fulfillmentId));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("trackingNumber", trackingNumber));
         spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("carrier", carrier));
-        Pageable pageable = PageableUtils.from(page, size, null);
+        Pageable pageable = pageableFactory.from(page, size, null);
         Page<TrackingResponse> result = repository.findAll(spec, pageable).map(TrackingMapper::toResponse);
         return PagedResponse.from(result);
     }
 
+    @Transactional(readOnly = true)
     public TrackingResponse get(UUID fulfillmentId, UUID trackingId) {
         log.debug("Fetching tracking fulfillmentId={} trackingId={}", fulfillmentId, trackingId);
         return TrackingMapper.toResponse(getEntity(fulfillmentId, trackingId));

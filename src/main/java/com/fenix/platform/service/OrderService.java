@@ -15,9 +15,8 @@ import com.fenix.platform.model.FulfillmentOverallStatus;
 import com.fenix.platform.model.OrderStatus;
 import com.fenix.platform.outbox.OutboxEventType;
 import com.fenix.platform.repository.OrderRepository;
-import com.fenix.platform.repository.OrganizationRepository;
-import com.fenix.platform.repository.WebsiteRepository;
-import com.fenix.platform.util.PageableUtils;
+import com.fenix.platform.tenant.TenantAccessGuard;
+import com.fenix.platform.util.PageableFactory;
 import com.fenix.platform.util.SpecificationUtils;
 
 import java.time.OffsetDateTime;
@@ -36,17 +35,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class OrderService {
     private final OrderRepository repository;
-    private final OrganizationRepository organizationRepository;
-    private final WebsiteRepository websiteRepository;
     private final OutboxEventService outboxEventService;
+    private final PageableFactory pageableFactory;
+    private final TenantAccessGuard tenantAccessGuard;
 
     @Transactional
     public OrderResponse create(OrderCreateRequest request) {
         log.info("Creating order orgId={} websiteId={} externalOrderId={}",
                 request.getOrgId(), request.getWebsiteId(), request.getExternalOrderId());
-        Organization organization = getOrganization(request.getOrgId());
-        Website website = getWebsite(request.getWebsiteId());
-        ensureWebsiteBelongsToOrg(organization, website);
+        Organization organization = tenantAccessGuard.requireOrganization(request.getOrgId());
+        Website website = tenantAccessGuard.requireWebsite(request.getOrgId(), request.getWebsiteId());
         Order entity = repository
                 .findByOrganizationIdAndWebsiteIdAndExternalOrderId(organization.getId(), website.getId(), request.getExternalOrderId())
                 .orElseGet(Order::new);
@@ -57,14 +55,14 @@ public class OrderService {
         return OrderMapper.toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<OrderResponse> list(UUID orgId, UUID websiteId, OffsetDateTime from, OffsetDateTime to,
                                              OrderStatus status, FinancialStatus financialStatus, FulfillmentOverallStatus fulfillmentStatus,
                                              Integer page, Integer size, String sort) {
         log.debug("Listing orders orgId={} websiteId={} from={} to={} status={} financialStatus={} fulfillmentStatus={} page={} size={} sort={}",
                 orgId, websiteId, from, to, status, financialStatus, fulfillmentStatus, page, size, sort);
         if (websiteId != null) {
-            Website website = getWebsite(websiteId);
-            ensureWebsiteBelongsToOrg(getOrganization(orgId), website);
+            tenantAccessGuard.ensureWebsiteInOrganization(orgId, websiteId);
         }
         String resolvedSort = sort != null ? sort : "orderUpdatedAt,desc";
         Specification<Order> spec = null;
@@ -74,29 +72,30 @@ public class OrderService {
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("status", status));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("financialStatus", financialStatus));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("fulfillmentStatus", fulfillmentStatus));
-        Pageable pageable = PageableUtils.from(page, size, resolvedSort);
+        Pageable pageable = pageableFactory.from(page, size, resolvedSort);
         Page<OrderResponse> result = repository.findAll(spec, pageable).map(OrderMapper::toResponse);
         return PagedResponse.from(result);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<OrderResponse> search(UUID orgId, UUID websiteId, String externalOrderId, String externalOrderNumber,
                                                Integer page, Integer size) {
         log.debug("Searching orders orgId={} websiteId={} externalOrderId={} externalOrderNumber={} page={} size={}",
                 orgId, websiteId, externalOrderId, externalOrderNumber, page, size);
         if (websiteId != null) {
-            Website website = getWebsite(websiteId);
-            ensureWebsiteBelongsToOrg(getOrganization(orgId), website);
+            tenantAccessGuard.ensureWebsiteInOrganization(orgId, websiteId);
         }
         Specification<Order> spec = null;
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("organization.id", orgId));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("website.id", websiteId));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("externalOrderId", externalOrderId));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("externalOrderNumber", externalOrderNumber));
-        Pageable pageable = PageableUtils.from(page, size, "orderUpdatedAt,desc");
+        Pageable pageable = pageableFactory.from(page, size, "orderUpdatedAt,desc");
         Page<OrderResponse> result = repository.findAll(spec, pageable).map(OrderMapper::toResponse);
         return PagedResponse.from(result);
     }
 
+    @Transactional(readOnly = true)
     public OrderResponse get(UUID orderId) {
         log.debug("Fetching order id={}", orderId);
         return OrderMapper.toResponse(getEntity(orderId));
@@ -106,9 +105,8 @@ public class OrderService {
     public OrderResponse update(UUID orderId, OrderUpdateRequest request) {
         log.info("Updating order id={}", orderId);
         Order entity = getEntity(orderId);
-        Organization organization = getOrganization(request.getOrgId());
-        Website website = getWebsite(request.getWebsiteId());
-        ensureWebsiteBelongsToOrg(organization, website);
+        Organization organization = tenantAccessGuard.requireOrganization(request.getOrgId());
+        Website website = tenantAccessGuard.requireWebsite(request.getOrgId(), request.getWebsiteId());
         OrderMapper.applyUpdate(entity, organization, website, request);
         Order saved = repository.save(entity);
         outboxEventService.recordOrderEvent(OutboxEventType.ORDER_UPDATED, saved);
@@ -136,23 +134,5 @@ public class OrderService {
     public Order getEntity(UUID orderId) {
         return repository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
-    }
-
-    private Organization getOrganization(UUID orgId) {
-        return organizationRepository.findById(orgId)
-                .orElseThrow(() -> new NotFoundException("Organization not found"));
-    }
-
-    private Website getWebsite(UUID websiteId) {
-        return websiteRepository.findById(websiteId)
-                .orElseThrow(() -> new NotFoundException("Website not found"));
-    }
-
-    private void ensureWebsiteBelongsToOrg(Organization organization, Website website) {
-        if (!website.getOrganization().getId().equals(organization.getId())) {
-            log.warn("Website org mismatch: websiteId={} websiteOrgId={} requestedOrgId={}",
-                    website.getId(), website.getOrganization().getId(), organization.getId());
-            throw new IllegalArgumentException("Website does not belong to the specified organization");
-        }
     }
 }

@@ -3,11 +3,13 @@ package com.fenix.platform.service;
 import com.fenix.platform.dto.OrganizationCreateRequest;
 import com.fenix.platform.dto.OrganizationResponse;
 import com.fenix.platform.dto.PagedResponse;
+import com.fenix.platform.config.PagingProperties;
 import com.fenix.platform.entity.Organization;
 import com.fenix.platform.exception.NotFoundException;
 import com.fenix.platform.model.OrgStatus;
 import com.fenix.platform.repository.OrganizationRepository;
 import com.fenix.platform.service.OutboxEventService;
+import com.fenix.platform.util.PageableFactory;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -15,10 +17,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -41,8 +43,14 @@ class OrganizationServiceTest {
     @Mock
     private OutboxEventService outboxEventService;
 
-    @InjectMocks
     private OrganizationService service;
+    private PageableFactory pageableFactory;
+
+    @BeforeEach
+    void setUp() {
+        pageableFactory = new PageableFactory(new PagingProperties());
+        service = new OrganizationService(repository, outboxEventService, pageableFactory);
+    }
 
     @Test
     void createDefaultsStatusWhenNull() {

@@ -3,6 +3,7 @@ package com.fenix.platform.service;
 import com.fenix.platform.dto.PagedResponse;
 import com.fenix.platform.dto.TrackingCreateRequest;
 import com.fenix.platform.dto.TrackingResponse;
+import com.fenix.platform.config.PagingProperties;
 import com.fenix.platform.entity.Fulfillment;
 import com.fenix.platform.entity.Organization;
 import com.fenix.platform.entity.Order;
@@ -11,6 +12,7 @@ import com.fenix.platform.exception.NotFoundException;
 import com.fenix.platform.model.TrackingStatus;
 import com.fenix.platform.repository.TrackingRepository;
 import com.fenix.platform.service.OutboxEventService;
+import com.fenix.platform.util.PageableFactory;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -18,10 +20,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -47,8 +49,14 @@ class TrackingServiceTest {
     @Mock
     private OutboxEventService outboxEventService;
 
-    @InjectMocks
     private TrackingService service;
+    private PageableFactory pageableFactory;
+
+    @BeforeEach
+    void setUp() {
+        pageableFactory = new PageableFactory(new PagingProperties());
+        service = new TrackingService(repository, fulfillmentService, outboxEventService, pageableFactory);
+    }
 
     @Test
     void createAssignsFulfillmentAndOrganization() {

@@ -3,6 +3,7 @@ package com.fenix.platform.service;
 import com.fenix.platform.dto.OrderCreateRequest;
 import com.fenix.platform.dto.PagedResponse;
 import com.fenix.platform.dto.OrderResponse;
+import com.fenix.platform.config.PagingProperties;
 import com.fenix.platform.entity.Order;
 import com.fenix.platform.entity.Organization;
 import com.fenix.platform.entity.Website;
@@ -13,9 +14,9 @@ import com.fenix.platform.model.OrderStatus;
 import com.fenix.platform.model.Platform;
 import com.fenix.platform.model.WebsiteStatus;
 import com.fenix.platform.repository.OrderRepository;
-import com.fenix.platform.repository.OrganizationRepository;
-import com.fenix.platform.repository.WebsiteRepository;
 import com.fenix.platform.service.OutboxEventService;
+import com.fenix.platform.tenant.TenantAccessGuard;
+import com.fenix.platform.util.PageableFactory;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -24,10 +25,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -49,16 +50,19 @@ class OrderServiceTest {
     private OrderRepository repository;
 
     @Mock
-    private OrganizationRepository organizationRepository;
-
-    @Mock
-    private WebsiteRepository websiteRepository;
-
-    @Mock
     private OutboxEventService outboxEventService;
 
-    @InjectMocks
+    @Mock
+    private TenantAccessGuard tenantAccessGuard;
+
     private OrderService service;
+    private PageableFactory pageableFactory;
+
+    @BeforeEach
+    void setUp() {
+        pageableFactory = new PageableFactory(new PagingProperties());
+        service = new OrderService(repository, outboxEventService, pageableFactory, tenantAccessGuard);
+    }
 
     @Test
     void createReusesExistingOrder() {
@@ -94,8 +98,8 @@ class OrderServiceTest {
         request.setExternalOrderId(externalOrderId);
         request.setOrderTotal(new BigDecimal("12.50"));
 
-        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
-        when(websiteRepository.findById(websiteId)).thenReturn(Optional.of(website));
+        when(tenantAccessGuard.requireOrganization(orgId)).thenReturn(organization);
+        when(tenantAccessGuard.requireWebsite(orgId, websiteId)).thenReturn(website);
         when(repository.findByOrganizationIdAndWebsiteIdAndExternalOrderId(orgId, websiteId, externalOrderId))
                 .thenReturn(Optional.of(existing));
         when(repository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -120,24 +124,18 @@ class OrderServiceTest {
         Organization org = new Organization();
         org.setId(orgId);
 
-        Organization other = new Organization();
-        other.setId(UUID.randomUUID());
-
-        Website website = new Website();
-        website.setId(websiteId);
-        website.setOrganization(other);
-
         OrderCreateRequest request = new OrderCreateRequest();
         request.setOrgId(orgId);
         request.setWebsiteId(websiteId);
         request.setExternalOrderId("ext-order-2");
 
-        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(org));
-        when(websiteRepository.findById(websiteId)).thenReturn(Optional.of(website));
+        when(tenantAccessGuard.requireOrganization(orgId)).thenReturn(org);
+        when(tenantAccessGuard.requireWebsite(orgId, websiteId))
+                .thenThrow(new NotFoundException("Website not found"));
 
         assertThatThrownBy(() -> service.create(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Website does not belong to the specified organization");
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("Website not found");
 
         verify(repository, never()).save(any(Order.class));
     }

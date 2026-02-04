@@ -10,4 +10,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecificationExecutor<Order> {
     Optional<Order> findByOrganizationIdAndWebsiteIdAndExternalOrderId(UUID orgId, UUID websiteId, String externalOrderId);
+
+    Optional<Order> findByIdAndOrganizationId(UUID id, UUID orgId);
+
+    boolean existsByIdAndOrganizationId(UUID id, UUID orgId);
 }

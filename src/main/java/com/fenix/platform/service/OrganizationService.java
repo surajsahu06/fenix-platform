@@ -11,7 +11,7 @@ import com.fenix.platform.mapper.OrganizationMapper;
 import com.fenix.platform.model.OrgStatus;
 import com.fenix.platform.outbox.OutboxEventType;
 import com.fenix.platform.repository.OrganizationRepository;
-import com.fenix.platform.util.PageableUtils;
+import com.fenix.platform.util.PageableFactory;
 import com.fenix.platform.util.SpecificationUtils;
 
 import java.time.OffsetDateTime;
@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrganizationService {
     private final OrganizationRepository repository;
     private final OutboxEventService outboxEventService;
+    private final PageableFactory pageableFactory;
 
     @Transactional
     public OrganizationResponse create(OrganizationCreateRequest request) {
@@ -42,6 +43,7 @@ public class OrganizationService {
         return OrganizationMapper.toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<OrganizationResponse> list(OffsetDateTime from, OffsetDateTime to, OrgStatus status, String name,
                                                     Integer page, Integer size, String sort) {
         log.debug("Listing organizations from={} to={} status={} name={} page={} size={} sort={}",
@@ -50,11 +52,12 @@ public class OrganizationService {
         spec = SpecificationUtils.and(spec, SpecificationUtils.between("updatedAt", from, to));
         spec = SpecificationUtils.and(spec, SpecificationUtils.equal("status", status));
         spec = SpecificationUtils.and(spec, SpecificationUtils.likeIgnoreCase("name", name));
-        Pageable pageable = PageableUtils.from(page, size, sort);
+        Pageable pageable = pageableFactory.from(page, size, sort);
         Page<OrganizationResponse> result = repository.findAll(spec, pageable).map(OrganizationMapper::toResponse);
         return PagedResponse.from(result);
     }
 
+    @Transactional(readOnly = true)
     public OrganizationResponse get(UUID id) {
         log.debug("Fetching organization id={}", id);
         return OrganizationMapper.toResponse(getEntity(id));

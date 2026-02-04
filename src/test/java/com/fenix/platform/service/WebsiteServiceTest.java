@@ -3,25 +3,26 @@ package com.fenix.platform.service;
 import com.fenix.platform.dto.PagedResponse;
 import com.fenix.platform.dto.WebsiteCreateRequest;
 import com.fenix.platform.dto.WebsiteResponse;
+import com.fenix.platform.config.PagingProperties;
 import com.fenix.platform.entity.Organization;
 import com.fenix.platform.entity.Website;
 import com.fenix.platform.exception.NotFoundException;
 import com.fenix.platform.model.Platform;
 import com.fenix.platform.model.WebsiteStatus;
-import com.fenix.platform.repository.OrganizationRepository;
 import com.fenix.platform.repository.WebsiteRepository;
 import com.fenix.platform.service.OutboxEventService;
+import com.fenix.platform.tenant.TenantAccessGuard;
+import com.fenix.platform.util.PageableFactory;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -42,13 +43,19 @@ class WebsiteServiceTest {
     private WebsiteRepository repository;
 
     @Mock
-    private OrganizationRepository organizationRepository;
-
-    @Mock
     private OutboxEventService outboxEventService;
 
-    @InjectMocks
+    @Mock
+    private TenantAccessGuard tenantAccessGuard;
+
     private WebsiteService service;
+    private PageableFactory pageableFactory;
+
+    @BeforeEach
+    void setUp() {
+        pageableFactory = new PageableFactory(new PagingProperties());
+        service = new WebsiteService(repository, outboxEventService, pageableFactory, tenantAccessGuard);
+    }
 
     @Test
     void createDefaultsStatusAndAssignsOrganization() {
@@ -61,7 +68,7 @@ class WebsiteServiceTest {
         request.setName("Store One");
         request.setPlatform(Platform.SHOPIFY);
 
-        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
+        when(tenantAccessGuard.requireOrganization(orgId)).thenReturn(organization);
         when(repository.save(any(Website.class))).thenAnswer(invocation -> {
             Website website = invocation.getArgument(0);
             if (website.getId() == null) {
@@ -118,7 +125,8 @@ class WebsiteServiceTest {
     void getThrowsWhenMissing() {
         UUID orgId = UUID.randomUUID();
         UUID websiteId = UUID.randomUUID();
-        when(repository.findOne(any(Specification.class))).thenReturn(Optional.empty());
+        when(tenantAccessGuard.requireWebsite(orgId, websiteId))
+                .thenThrow(new NotFoundException("Website not found"));
 
         assertThatThrownBy(() -> service.get(orgId, websiteId))
                 .isInstanceOf(NotFoundException.class)
