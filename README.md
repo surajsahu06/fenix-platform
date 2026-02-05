@@ -7,6 +7,7 @@ Java Spring Boot backend for multi-organization (tenant) eCommerce order, fulfil
 - MySQL 8
 - Flyway migrations
 - Maven
+- Spring Boot Actuator
 
 **Default Ports**
 - App: `8080`
@@ -73,6 +74,10 @@ Swagger UI:
 
 OpenAPI JSON:
 - `http://localhost:8080/v3/api-docs`
+
+## Health Check
+Actuator health endpoint:
+- `http://localhost:8080/actuator/health`
 
 ## Postman Collection
 Import `postman_collection_fenix_platform.json` and set collection variables:
